@@ -1,3 +1,5 @@
+## [Discord](https://discord.gg/59UrPJwYDm)
+
 # Tutorial
 ## Instructions
 1. Be sure all your clients are logged onto the desired wizard.
