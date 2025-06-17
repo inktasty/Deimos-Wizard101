@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest  # Using Windows runner since we're creating a Windows executable with .ico
+    runs-on: self-hosted
     
     steps:
     - uses: actions/checkout@v4
