@@ -104,13 +104,13 @@ def read_config(config_name : str):
 	parser.read(config_name)
 
 	# Settings
-	global auto_updating
+	# global auto_updating
 	global speed_multiplier
 	global use_potions
 	global rpc_status
 	global drop_status
 	global anti_afk_status
-	auto_updating = parser.getboolean('settings', 'auto_updating', fallback=True)
+	# auto_updating = parser.getboolean('settings', 'auto_updating', fallback=True)
 	speed_multiplier = parser.getfloat('settings', 'speed_multiplier', fallback=5.0)
 	use_potions = parser.getboolean('settings', 'use_potions', fallback=True)
 	rpc_status = parser.getboolean('settings', 'rich_presence', fallback=True)
@@ -361,13 +361,13 @@ def is_version_greater(version: str, comparison_version: str) -> bool:
 	return False
 
 
-def auto_update(latest_version: str = get_latest_version()):
-	remove_if_exists(f'{tool_name}-copy.exe')
-	remove_if_exists(f'{tool_name}Updater.exe')
-	time.sleep(0.1)
-	if auto_updating:
-		if is_version_greater(latest_version, tool_version):
-			run_updater()
+# def auto_update(latest_version: str = get_latest_version()):
+# 	remove_if_exists(f'{tool_name}-copy.exe')
+# 	remove_if_exists(f'{tool_name}Updater.exe')
+# 	time.sleep(0.1)
+# 	if auto_updating:
+# 		if is_version_greater(latest_version, tool_version):
+# 			run_updater()
 
 
 def hotkey_button(name: str, auto_size: bool = False, text_color: str = gui_text_color, button_color: str = gui_button_color):
@@ -2141,47 +2141,47 @@ def bool_to_string(input: bool):
 		return 'Disabled'
 
 
-def handle_tool_updating():
-	version = get_latest_version()
-	update_server = None
+# def handle_tool_updating():
+# 	version = get_latest_version()
+# 	update_server = None
 
-	try:
-		update_server = read_webpage(f"{repo_path_raw}/LatestVersion.txt")
-	except Exception as e:
-		print(f"Exception \"{type(e).__name__}\" occured when checking for updates: \"{e}\"")
-		return
+# 	try:
+# 		update_server = read_webpage(f"{repo_path_raw}/LatestVersion.txt")
+# 	except Exception as e:
+# 		print(f"Exception \"{type(e).__name__}\" occured when checking for updates: \"{e}\"")
+# 		return
 	
-	if update_server is None:
-		return
+# 	if update_server is None:
+# 		return
 
-	if update_server is not None and update_server[1].lower() == 'false':
-		raise KeyboardInterrupt
+# 	if update_server is not None and update_server[1].lower() == 'false':
+# 		raise KeyboardInterrupt
 
-	if update_server is not None:
-		version_specific_data = update_server[2:]
-		version_status_check = ' '.join(version_specific_data)
+# 	if update_server is not None:
+# 		version_specific_data = update_server[2:]
+# 		version_status_check = ' '.join(version_specific_data)
 
-		if tool_version in version_status_check:
-			version_status_index = index_with_str(version_specific_data, tool_version)
-			version_status = version_specific_data[version_status_index].split(' ')[1]
+# 		if tool_version in version_status_check:
+# 			version_status_index = index_with_str(version_specific_data, tool_version)
+# 			version_status = version_specific_data[version_status_index].split(' ')[1]
 
-			if version_status.lower() == 'false':
-				raise KeyboardInterrupt
+# 			if version_status.lower() == 'false':
+# 				raise KeyboardInterrupt
 
-			elif version_status.lower() == 'force':
-				auto_update()
+# 			elif version_status.lower() == 'force':
+# 				auto_update()
 
-		if version and auto_updating:
-			if is_version_greater(version, tool_version):
-				auto_update()
+# 		if version and auto_updating:
+# 			if is_version_greater(version, tool_version):
+# 				auto_update()
 
-			if not is_version_greater(tool_version, version):
-				config_update()
+# 			if not is_version_greater(tool_version, version):
+# 				config_update()
 
 
 if __name__ == "__main__":
 	# Validate configs and update the tool
-	handle_tool_updating()
+	# handle_tool_updating()
 
 	current_log = logger.add(f"logs/{tool_name} - {generate_timestamp()}.log", encoding='utf-8', enqueue=True, backtrace=True)
 	asyncio.run(main())
