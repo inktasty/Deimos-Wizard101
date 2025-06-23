@@ -58,7 +58,7 @@ tool_version: str = '3.11.0'
 tool_name: str = 'Deimos'
 tool_author: str = 'Deimos-Wizard101'
 repo_name: str = tool_name + '-Wizard101'
-branch: str = 'master'
+branch: str = 'main'
 repo_path_raw: str = f'https://github.com/{tool_author}/{repo_name}/raw/branch/{branch}'
 
 type_format_dict = {
