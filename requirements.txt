@@ -1,5 +1,5 @@
 thefuzz>=0.22.1
-loguru>=0.7.2
+loguru==0.5.3
 pyperclip>=1.9.0
 requests>=2.32.3
 git+https://github.com/Deimos-Wizard101/wizwalker@development
