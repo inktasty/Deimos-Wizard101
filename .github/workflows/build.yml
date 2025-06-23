@@ -6,13 +6,27 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:  # Allows manual triggering
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: true
+        default: 'development'
+        type: string
+  schedule:
+    # Run once per week on Sunday at 6 AM UTC
+    - cron: '0 6 * * 0'
 
 jobs:
   build:
-    runs-on: windows-latest  # Using Windows runner since we're creating a Windows executable with .ico
+    runs-on: self-hosted
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        # For scheduled runs, build from main branch
+        # For manual runs, use the specified branch
+        # For push/PR, use the default behavior
+        ref: ${{ github.event.inputs.branch || (github.event_name == 'schedule' && 'main') || github.ref }}
     
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -32,6 +46,6 @@ jobs:
     - name: Upload executable artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Deimos
+        name: Deimos-${{ github.event.inputs.branch || github.ref_name }}-${{ github.run_number }}
         path: dist/Deimos.exe
         retention-days: 7  # Keep the artifact for 7 days
