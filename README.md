@@ -1,16 +1,15 @@
-Tutorial:
-To run, be sure all your wiz clients are ordered correctly (p2 should be below and to the right of p1, etc), and all logged into the desired wizard. 
-Run the Deimos.exe by double clicking it. Pay attention to the blue text on the window that shows up, as it will tell you when the program is ready after lauching.
+## [Discord](https://discord.gg/59UrPJwYDm)
 
-From here, it's very self explanatory. Look in Deimos-config.ini to see what hotkeys are mapped. Refer to the discord server's reference channel for proper key names, they are case sensitive.
+# Tutorial
+## Instructions
+1. Be sure all your clients are logged onto the desired wizard.
+2. Run the ```Deimos.exe``` by double clicking it.
 
-To remap keys, simply replace the key's name with the desired key in the config. Save your changes, then kill (with the kill hotkey) and relaunch the tool.
-
-This tool gets updated when I have free time from college, and my personal project(s). Don't pester me for when updates are coming.
-
-You can also close Deimos by closing out the GUI.
-
-What hotkeys exist:
+## Hotkeys
+- Look in ```Deimos-config.ini``` to see what hotkeys are mapped.
+- Any change to the config will require a restart of the tool.
+- Refer to the discord server's reference channel for proper key names, they are case sensitive.
+### Hotkey List
 - X Press to all clients (`X` key by default)
 - Sync XYZ of all clients (syncs client positions with selected client, `F8` by default)
 - Navmap quest TP (selected client, `F7` by default)
@@ -24,7 +23,10 @@ What hotkeys exist:
 - Freecam (`F1` by default)
 - TP to freecam position (`Shift + Freecam` Key by default)
 
-The GUI also has a bot creator and flythrough creator. Information on these systems are in the bots/flythroughs channels of the Deimos discord server, or the [wiki](https://codeberg.org/Deimos-Wizard101/Deimos-Wizard101/wiki).
+## Important
+- Don't bug the community or myself for when updates are coming. This is a free tool and will stay that way.
+- There's also more advanced features in the GUI that are difficult to explain in writing. Those are intended for more advanced users and/or script developers. No support will be provided on them.
+- Additionally, minimal support will be provided on auto questing and auto sigil. This is highly generalized code by design and it is impossible to fix every issue or every circumstance.
 
-There's also more advanced features in the GUI that are difficult to explain in writing. Those are intended for more advanced users and/or script developers. No support will be provided on them.
-Additionally, minimal support will be provided on auto questing and auto sigil. This is highly generalized code by design and it is impossible to fix every issue or every circumstance.
+## Other
+The GUI also has a bot creator and flythrough creator. Information on these systems are in the bots/flythroughs channels of the Deimos discord server, or the [wiki](https://github.org/Deimos-Wizard101/Deimos-Wizard101/wiki).
