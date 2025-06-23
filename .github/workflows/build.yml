@@ -10,7 +10,7 @@ on:
       branch:
         description: 'Branch to build'
         required: true
-        default: 'main-dev'
+        default: 'dev-main'
         type: string
   schedule:
     # Run once per week on Sunday at 6 AM UTC
@@ -31,7 +31,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.13'  # Specify your Python version
+        python-version: '3.11'  # Specify your Python version
     
     - name: Install dependencies
       run: |
