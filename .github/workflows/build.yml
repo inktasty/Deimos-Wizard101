@@ -41,7 +41,7 @@ jobs:
     
     - name: Build with PyInstaller
       run: |
-        pyinstaller -F -w --clean -i Deimos-logo.ico --version-file version_info.txt Deimos.py --noupx --optimize 2 --strip --manifest "app.manifest"
+        pyinstaller -F -w --clean -i Deimos-logo.ico --version-file version_info.txt Deimos.py --noupx --optimize 2 --manifest "app.manifest"
     
     - name: Upload executable artifact
       uses: actions/upload-artifact@v4

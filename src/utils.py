@@ -437,7 +437,7 @@ async def navigate_to_potions(client: Client):
      # make sure client is not loading
     while await client.is_loading():
         await asyncio.sleep(0.1)
-      #Teleports to Hilda if not already in range
+    #Teleports to Hilda if not already in range
     while not await client.is_in_npc_range():
         await client.teleport(hilda)
         await asyncio.sleep(2)
