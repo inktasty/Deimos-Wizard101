@@ -272,8 +272,19 @@ class Compiler:
             case SelectorGroup() | UnaryExpression():
                 self.prep_expression(expr.expr)
             case ListExpression():
-                for item in expr.items:
-                    self.prep_expression(item)
+                if hasattr(expr, 'items'):
+                    if isinstance(expr.items, list):
+                        if len(expr.items) == 1 and isinstance(expr.items[0], ListExpression):
+                            self.prep_expression(expr.items[0])
+                        else:
+                            for item in expr.items:
+                                self.prep_expression(item)
+                    elif isinstance(expr.items, ListExpression):
+                        self.prep_expression(expr.items)
+                    else:
+                        raise CompilerError(f"Unexpected type for ListExpression.items: {type(expr.items)}")
+                else:
+                    raise CompilerError(f"ListExpression missing 'items' attribute: {expr}")
             case RangeMinExpression() | RangeMaxExpression():
                 self.prep_expression(expr.range_expr)
             case IndexAccessExpression():

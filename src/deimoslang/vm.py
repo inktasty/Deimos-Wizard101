@@ -5,7 +5,6 @@ from asyncio import Task as AsyncTask, TaskGroup
 from wizwalker import AddressOutOfRange, Client, XYZ, Keycode, MemoryReadError, Primitive
 from wizwalker.memory import DynamicClientObject
 from wizwalker.memory.memory_objects.quest_data import QuestData, GoalData
-from wizwalker.memory.memory_objects.inventory_behavior import ClientInventoryBehavior
 from wizwalker.extensions.wizsprinter import SprintyClient
 from wizwalker.extensions.wizsprinter.wiz_sprinter import Coroutine, upgrade_clients
 from wizwalker.extensions.wizsprinter.wiz_navigator import toZone
@@ -1083,8 +1082,28 @@ class VM:
                 assert(isinstance(lhs, (int, float)))
                 assert(isinstance(rhs, (int, float)))
                 return lhs - rhs
+            
             case ListExpression():
-                return [await self.eval(item, client) for item in expression.items]
+                result = []
+                
+                if hasattr(expression, 'items') and isinstance(expression.items, list):
+                    for item in expression.items:
+                        evaluated_item = await self.eval(item, client)
+                        if isinstance(evaluated_item, list):
+                            result.extend(evaluated_item)
+                        else:
+                            result.append(evaluated_item)
+                elif hasattr(expression, 'items') and isinstance(expression.items, ListExpression):
+                    inner_result = await self.eval(expression.items, client)
+                    result = inner_result if isinstance(inner_result, list) else [inner_result]
+                elif hasattr(expression, 'expr') and isinstance(expression.expr, ListExpression):
+                    inner_result = await self.eval(expression.expr, client)
+                    result = inner_result if isinstance(inner_result, list) else [inner_result]
+                elif hasattr(expression, 'expr'):
+                    single_result = await self.eval(expression.expr, client)
+                    result = [single_result]
+                
+                return result
             case ContainsStringExpression():
                 lhs = await self.eval(expression.lhs, client)
                 rhs = await self.eval(expression.rhs, client)

@@ -608,14 +608,30 @@ class Parser:
                     string_list = self.parse_list()
             
                     if contains:
-                        return SelectorGroup(player_selector, ContainsStringExpression(Eval(EvalKind.windowtext, [window_path]), ListExpression(string_list)))
+                        return SelectorGroup(player_selector, ContainsStringExpression(
+                            Eval(EvalKind.windowtext, [window_path]), 
+                            ListExpression(string_list)
+                        ))
                     else:
                         or_expressions = []
-                        for string_expr in string_list:
+                        window_text_eval = Eval(EvalKind.windowtext, [window_path])
+                        
+                        if isinstance(string_list, ListExpression):
+                            items_to_iterate = string_list.items
+                        else:
+                            items_to_iterate = string_list
+                            
+                        for string_expr in items_to_iterate:
                             if isinstance(string_expr, StringExpression):
-                                or_expressions.append(EquivalentExpression(Eval(EvalKind.windowtext, [window_path]), StringExpression(string_expr.string.lower())))
+                                or_expressions.append(EquivalentExpression(
+                                    window_text_eval, 
+                                    StringExpression(string_expr.string.lower())
+                                ))
                             elif isinstance(string_expr, IdentExpression):
-                                or_expressions.append(EquivalentExpression(Eval(EvalKind.windowtext, [window_path]), string_expr))
+                                or_expressions.append(EquivalentExpression(
+                                    window_text_eval, 
+                                    string_expr
+                                ))
                         
                         if len(or_expressions) == 1:
                             return SelectorGroup(player_selector, or_expressions[0])
