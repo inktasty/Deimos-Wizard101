@@ -189,69 +189,77 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Send Discord Notification
-      shell: bash
+      shell: powershell
       run: |
-        echo "Sending Discord notification for release ${{ steps.version.outputs.VERSION_TAG }}..."
+        Write-Host "Sending Discord notification for release ${{ steps.version.outputs.VERSION_TAG }}..."
         
         # Get file size for display
-        FILE_SIZE=$(stat -c%s "Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip")
-        FILE_SIZE_MB=$(echo "scale=2; $FILE_SIZE / 1024 / 1024" | bc -l)
+        $zipFile = "Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip"
+        $fileSize = (Get-Item $zipFile).Length
+        $fileSizeMB = [math]::Round($fileSize / 1MB, 2)
         
         # Prepare changelog for Discord (truncate if too long)
-        CHANGELOG="${{ steps.changelog.outputs.CHANGELOG }}"
-        if [ ${#CHANGELOG} -gt 800 ]; then
-          CHANGELOG="${CHANGELOG:0:800}..."
-        fi
+        $changelog = @"
+        ${{ steps.changelog.outputs.CHANGELOG }}
+        "@
+        
+        if ($changelog.Length -gt 800) {
+          $changelog = $changelog.Substring(0, 800) + "..."
+        }
         
         # Escape quotes and newlines for JSON
-        CHANGELOG_ESCAPED=$(echo "$CHANGELOG" | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+        $changelogEscaped = $changelog -replace '"', '\"' -replace "`r`n", '\n' -replace "`n", '\n'
+        
+        # Get current timestamp in ISO format
+        $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
         
         # Create Discord webhook payload
-        curl -H "Content-Type: application/json" \
-             -X POST \
-             -d "{
-               \"content\": \"<@263123145333014530>\",
-               \"embeds\": [{
-                 \"title\": \"🚀 New Deimos Release: ${{ steps.version.outputs.VERSION_TAG }}\",
-                 \"description\": \"A new version of Deimos has been released!\",
-                 \"url\": \"https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.VERSION_TAG }}\",
-                 \"color\": 65280,
-                 \"fields\": [
-                   {
-                     \"name\": \"Repository\",
-                     \"value\": \"${{ github.repository }}\",
-                     \"inline\": true
-                   },
-                   {
-                     \"name\": \"Version\",
-                     \"value\": \"${{ steps.version.outputs.VERSION_NUMBER }}\",
-                     \"inline\": true
-                   },
-                   {
-                     \"name\": \"Package Size\",
-                     \"value\": \"${FILE_SIZE_MB} MB\",
-                     \"inline\": true
-                   },
-                   {
-                     \"name\": \"What's Changed\",
-                     \"value\": \"$CHANGELOG_ESCAPED\",
-                     \"inline\": false
-                   }
-                 ],
-                 \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\",
-                 \"footer\": {
-                   \"text\": \"GitHub Release\",
-                   \"icon_url\": \"https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png\"
-                 }
-               }]
-             }" \
-             "${{ secrets.DISCORD_WEBHOOK }}"
+        $payload = @{
+          content = "<@263123145333014530>"
+          embeds = @(
+            @{
+              title = "🚀 New Deimos Release: ${{ steps.version.outputs.VERSION_TAG }}"
+              description = "A new version of Deimos has been released!"
+              url = "https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.VERSION_TAG }}"
+              color = 65280
+              fields = @(
+                @{
+                  name = "Repository"
+                  value = "${{ github.repository }}"
+                  inline = $true
+                },
+                @{
+                  name = "Version"
+                  value = "${{ steps.version.outputs.VERSION_NUMBER }}"
+                  inline = $true
+                },
+                @{
+                  name = "Package Size"
+                  value = "$fileSizeMB MB"
+                  inline = $true
+                },
+                @{
+                  name = "What's Changed"
+                  value = $changelogEscaped
+                  inline = $false
+                }
+              )
+              timestamp = $timestamp
+              footer = @{
+                text = "GitHub Release"
+                icon_url = "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+              }
+            }
+          )
+        } | ConvertTo-Json -Depth 10
         
-        if [ $? -eq 0 ]; then
-          echo "✓ Discord notification sent successfully"
-        else
-          echo "⚠ Failed to send Discord notification (non-critical)"
-        fi
+        try {
+          $response = Invoke-RestMethod -Uri "${{ secrets.DISCORD_WEBHOOK }}" -Method Post -Body $payload -ContentType "application/json"
+          Write-Host "✓ Discord notification sent successfully"
+        }
+        catch {
+          Write-Host "⚠ Failed to send Discord notification (non-critical): $($_.Exception.Message)"
+        }
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
     
