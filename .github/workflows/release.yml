@@ -83,24 +83,23 @@ jobs:
         echo "Deimos.exe size: $(stat -c%s dist/Deimos.exe) bytes"
     
     - name: Create release package
-      shell: bash
+      shell: powershell
       run: |
-        echo "Creating release package..."
-        mkdir -p release
+        Write-Host "Creating release package..."
+        New-Item -ItemType Directory -Path "release" -Force
         
         # Copy files to release directory
-        cp dist/Deimos.exe release/
-        cp Deimos-config.ini release/
-        cp LICENSE release/
+        Copy-Item "dist/Deimos.exe" -Destination "release/"
+        Copy-Item "Deimos-config.ini" -Destination "release/"
+        Copy-Item "LICENSE" -Destination "release/"
         
-        # Create zip file with version in name
-        cd release
-        zip -r "../Deimos-${{ steps.version.outputs.VERSION }}.zip" .
-        cd ..
+        # Create zip file with version in name using PowerShell
+        $zipName = "Deimos-${{ steps.version.outputs.VERSION }}.zip"
+        Compress-Archive -Path "release/*" -DestinationPath $zipName -Force
         
-        echo "Release package created: Deimos-${{ steps.version.outputs.VERSION }}.zip"
-        echo "Package contents:"
-        unzip -l "Deimos-${{ steps.version.outputs.VERSION }}.zip"
+        Write-Host "Release package created: $zipName"
+        Write-Host "Package contents:"
+        Get-ChildItem "release" | Format-Table Name, Length
     
     - name: Generate changelog
       id: changelog
