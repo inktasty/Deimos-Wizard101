@@ -188,6 +188,73 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
+    - name: Send Discord Notification
+      shell: bash
+      run: |
+        echo "Sending Discord notification for release ${{ steps.version.outputs.VERSION_TAG }}..."
+        
+        # Get file size for display
+        FILE_SIZE=$(stat -c%s "Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip")
+        FILE_SIZE_MB=$(echo "scale=2; $FILE_SIZE / 1024 / 1024" | bc -l)
+        
+        # Prepare changelog for Discord (truncate if too long)
+        CHANGELOG="${{ steps.changelog.outputs.CHANGELOG }}"
+        if [ ${#CHANGELOG} -gt 800 ]; then
+          CHANGELOG="${CHANGELOG:0:800}..."
+        fi
+        
+        # Escape quotes and newlines for JSON
+        CHANGELOG_ESCAPED=$(echo "$CHANGELOG" | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+        
+        # Create Discord webhook payload
+        curl -H "Content-Type: application/json" \
+             -X POST \
+             -d "{
+               \"content\": \"<@263123145333014530>\",
+               \"embeds\": [{
+                 \"title\": \"🚀 New Deimos Release: ${{ steps.version.outputs.VERSION_TAG }}\",
+                 \"description\": \"A new version of Deimos has been released!\",
+                 \"url\": \"https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.VERSION_TAG }}\",
+                 \"color\": 65280,
+                 \"fields\": [
+                   {
+                     \"name\": \"Repository\",
+                     \"value\": \"${{ github.repository }}\",
+                     \"inline\": true
+                   },
+                   {
+                     \"name\": \"Version\",
+                     \"value\": \"${{ steps.version.outputs.VERSION_NUMBER }}\",
+                     \"inline\": true
+                   },
+                   {
+                     \"name\": \"Package Size\",
+                     \"value\": \"${FILE_SIZE_MB} MB\",
+                     \"inline\": true
+                   },
+                   {
+                     \"name\": \"What's Changed\",
+                     \"value\": \"$CHANGELOG_ESCAPED\",
+                     \"inline\": false
+                   }
+                 ],
+                 \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\",
+                 \"footer\": {
+                   \"text\": \"GitHub Release\",
+                   \"icon_url\": \"https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png\"
+                 }
+               }]
+             }" \
+             "${{ secrets.DISCORD_WEBHOOK }}"
+        
+        if [ $? -eq 0 ]; then
+          echo "✓ Discord notification sent successfully"
+        else
+          echo "⚠ Failed to send Discord notification (non-critical)"
+        fi
+      env:
+        DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+    
     - name: Release Summary
       shell: bash
       run: |
