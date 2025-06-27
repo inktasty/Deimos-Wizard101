@@ -194,18 +194,24 @@ jobs:
 
     - name: Notify Discord via PowerShell Script
       shell: pwsh
+      working-directory: ${{ github.workspace }}
       run: |
         $ErrorActionPreference = "Stop"
-        $scriptPath = "$PSScriptRoot\release_notify.ps1"
+
+        $scriptPath = Join-Path $PWD 'release_notify.ps1'
         if (-Not (Test-Path $scriptPath)) {
           throw "release_notify.ps1 not found at $scriptPath"
         }
-        $webhookUrl = "${{ secrets.DISCORD_WEBHOOK }}"
-        $version = "${{ steps.version.outputs.VERSION_NUMBER }}"
-        $versionTag = "${{ steps.version.outputs.VERSION_TAG }}"
-        $repository = "https://github.com/${{ github.repository }}"
-        $zipFile = "Deimos-${versionTag}.zip"
-        $changelog = "${{ steps.changelog.outputs.CHANGELOG }}" -replace "`r`n", "`n"
+
+        # Safely access environment variables
+        $webhookUrl = $env:DISCORD_WEBHOOK
+        $version = $env:VERSION
+        $versionTag = $env:VERSION_TAG
+        $repository = $env:REPOSITORY
+        $zipFile = $env:ZIP_FILE
+        $changelog = $env:CHANGELOG -replace "`r`n", "`n"
+        $userId = $env:USER_ID
+
         & $scriptPath `
           -WebhookUrl $webhookUrl `
           -Version $version `
@@ -213,9 +219,16 @@ jobs:
           -Repository $repository `
           -ZipFile $zipFile `
           -Changelog $changelog `
-          -UserId "263123145333014530"
+          -UserId $userId
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        VERSION: ${{ steps.version.outputs.VERSION_NUMBER }}
+        VERSION_TAG: ${{ steps.version.outputs.VERSION_TAG }}
+        REPOSITORY: https://github.com/${{ github.repository }}
+        ZIP_FILE: Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip
+        CHANGELOG: ${{ steps.changelog.outputs.CHANGELOG }}
+        USER_ID: "263123145333014530"
+
 
     - name: Release Summary
       shell: bash
