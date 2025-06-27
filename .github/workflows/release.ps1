@@ -39,20 +39,28 @@ if ($status) {
 Write-Blue "📥 Pulling latest changes..."
 git pull origin main
 
-# Get current version from latest tag, or start at v0.0.0
-try {
-    $currentVersion = git describe --tags --abbrev=0 2>$null
-    if (-not $currentVersion) {
-        $currentVersion = "v0.0.0"
-    }
-} catch {
-    $currentVersion = "v0.0.0"
+# Get current version from Deimos.py source code
+Write-Blue "📖 Reading current version from Deimos.py..."
+if (-not (Test-Path "Deimos.py")) {
+    Write-Red "❌ Error: Deimos.py not found in current directory"
+    exit 1
 }
+
+$content = Get-Content "Deimos.py" -Raw
+$versionMatch = $content | Select-String "tool_version: str = '([^']+)'"
+
+if (-not $versionMatch) {
+    Write-Red "❌ Error: Could not find tool_version in Deimos.py"
+    exit 1
+}
+
+$currentVersionNumber = $versionMatch.Matches[0].Groups[1].Value
+$currentVersion = "v$currentVersionNumber"
 
 Write-Blue "Current version: $currentVersion"
 
 # Remove 'v' prefix for version manipulation
-$versionNumber = $currentVersion.TrimStart('v')
+$versionNumber = $currentVersionNumber
 
 # Split version into parts
 $versionParts = $versionNumber.Split('.')
