@@ -196,7 +196,7 @@ jobs:
       shell: pwsh
       run: |
         $ErrorActionPreference = "Stop"
-        $scriptPath = ".\release_notify.ps1"
+        $scriptPath = "$PSScriptRoot\release_notify.ps1"
         if (-Not (Test-Path $scriptPath)) {
           throw "release_notify.ps1 not found at $scriptPath"
         }
@@ -205,9 +205,7 @@ jobs:
         $versionTag = "${{ steps.version.outputs.VERSION_TAG }}"
         $repository = "https://github.com/${{ github.repository }}"
         $zipFile = "Deimos-${versionTag}.zip"
-        $changelog = @"
-          ${{ steps.changelog.outputs.CHANGELOG }}
-        "@
+        $changelog = "${{ steps.changelog.outputs.CHANGELOG }}" -replace "`r`n", "`n"
         & $scriptPath `
           -WebhookUrl $webhookUrl `
           -Version $version `
