@@ -187,12 +187,14 @@ jobs:
         prerelease: ${{ contains(steps.version.outputs.VERSION_NUMBER, 'alpha') || contains(steps.version.outputs.VERSION_NUMBER, 'beta') || contains(steps.version.outputs.VERSION_NUMBER, 'rc') }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
     - name: Notify Discord via PowerShell Script
       shell: pwsh
       run: |
         $ErrorActionPreference = "Stop"
-
+        $scriptPath = Join-Path $PSScriptRoot "release_notify.ps1"
+        if (-Not (Test-Path $scriptPath)) {
+          throw "release_notify.ps1 not found at $scriptPath"
+        }
         $webhookUrl = "${{ secrets.DISCORD_WEBHOOK }}"
         $version = "${{ steps.version.outputs.VERSION_NUMBER }}"
         $versionTag = "${{ steps.version.outputs.VERSION_TAG }}"
@@ -201,9 +203,7 @@ jobs:
         $changelog = @"
           ${{ steps.changelog.outputs.CHANGELOG }}
         "@
-
-        # Call the PowerShell script
-        ./release_notify.ps1 `
+        & $scriptPath `
           -WebhookUrl $webhookUrl `
           -Version $version `
           -VersionTag $versionTag `
