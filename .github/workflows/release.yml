@@ -199,66 +199,66 @@ jobs:
         $fileSizeMB = [math]::Round($fileSize / 1MB, 2)
         
         # Prepare changelog for Discord (truncate if too long)
-        $changelog = @"
-        ${{ steps.changelog.outputs.CHANGELOG }}
-        "@
+        $changelog = @'
+${{ steps.changelog.outputs.CHANGELOG }}
+'@
         
         if ($changelog.Length -gt 800) {
           $changelog = $changelog.Substring(0, 800) + "..."
         }
         
-        # Escape quotes and newlines for JSON
-        $changelogEscaped = $changelog -replace '"', '\"' -replace "`r`n", '\n' -replace "`n", '\n'
+        # Clean changelog for JSON - remove problematic characters
+        $changelogClean = $changelog -replace '"', "'" -replace '[\r\n]+', ' | ' -replace '\\', '/'
         
         # Get current timestamp in ISO format
         $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
         
-        # Create Discord webhook payload
-        $payload = @{
-          content = "<@263123145333014530>"
-          embeds = @(
-            @{
-              title = "🚀 New Deimos Release: ${{ steps.version.outputs.VERSION_TAG }}"
-              description = "A new version of Deimos has been released!"
-              url = "https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.VERSION_TAG }}"
-              color = 65280
-              fields = @(
-                @{
-                  name = "Repository"
-                  value = "${{ github.repository }}"
-                  inline = $true
-                },
-                @{
-                  name = "Version"
-                  value = "${{ steps.version.outputs.VERSION_NUMBER }}"
-                  inline = $true
-                },
-                @{
-                  name = "Package Size"
-                  value = "$fileSizeMB MB"
-                  inline = $true
-                },
-                @{
-                  name = "What's Changed"
-                  value = $changelogEscaped
-                  inline = $false
-                }
-              )
-              timestamp = $timestamp
-              footer = @{
-                text = "GitHub Release"
-                icon_url = "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-              }
-            }
-          )
-        } | ConvertTo-Json -Depth 10
+        # Create JSON payload manually to avoid escaping issues
+        $jsonPayload = @"
+{
+  "content": "<@263123145333014530>",
+  "embeds": [{
+    "title": "🚀 New Deimos Release: ${{ steps.version.outputs.VERSION_TAG }}",
+    "description": "A new version of Deimos has been released!",
+    "url": "https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.VERSION_TAG }}",
+    "color": 65280,
+    "fields": [
+      {
+        "name": "Repository",
+        "value": "${{ github.repository }}",
+        "inline": true
+      },
+      {
+        "name": "Version", 
+        "value": "${{ steps.version.outputs.VERSION_NUMBER }}",
+        "inline": true
+      },
+      {
+        "name": "Package Size",
+        "value": "$fileSizeMB MB",
+        "inline": true
+      },
+      {
+        "name": "What's Changed",
+        "value": "$changelogClean",
+        "inline": false
+      }
+    ],
+    "timestamp": "$timestamp",
+    "footer": {
+      "text": "GitHub Release",
+      "icon_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+    }
+  }]
+}
+"@
         
         try {
-          $response = Invoke-RestMethod -Uri "${{ secrets.DISCORD_WEBHOOK }}" -Method Post -Body $payload -ContentType "application/json"
-          Write-Host "✓ Discord notification sent successfully"
+          $response = Invoke-RestMethod -Uri $env:DISCORD_WEBHOOK -Method Post -Body $jsonPayload -ContentType "application/json"
+          Write-Host "Discord notification sent successfully"
         }
         catch {
-          Write-Host "⚠ Failed to send Discord notification (non-critical): $($_.Exception.Message)"
+          Write-Host "Failed to send Discord notification (non-critical): $($_.Exception.Message)"
         }
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
