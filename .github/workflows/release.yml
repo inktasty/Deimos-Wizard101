@@ -188,81 +188,32 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Send Discord Notification
-      shell: powershell
+    - name: Notify Discord via PowerShell Script
+      shell: pwsh
       run: |
-        Write-Host "Sending Discord notification for release ${{ steps.version.outputs.VERSION_TAG }}..."
-        
-        # Get file size for display
-        $zipFile = "Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip"
-        $fileSize = (Get-Item $zipFile).Length
-        $fileSizeMB = [math]::Round($fileSize / 1MB, 2)
-        
-        # Prepare changelog for Discord (truncate if too long)
-        $changelog = @'
-${{ steps.changelog.outputs.CHANGELOG }}
-'@
-        
-        if ($changelog.Length -gt 800) {
-          $changelog = $changelog.Substring(0, 800) + "..."
-        }
-        
-        # Clean changelog for JSON - remove problematic characters
-        $changelogClean = $changelog -replace '"', "'" -replace '[\r\n]+', ' | ' -replace '\\', '/'
-        
-        # Get current timestamp in ISO format
-        $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-        
-        # Create JSON payload manually to avoid escaping issues
-        $jsonPayload = @"
-{
-  "content": "<@263123145333014530>",
-  "embeds": [{
-    "title": "🚀 New Deimos Release: ${{ steps.version.outputs.VERSION_TAG }}",
-    "description": "A new version of Deimos has been released!",
-    "url": "https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.VERSION_TAG }}",
-    "color": 65280,
-    "fields": [
-      {
-        "name": "Repository",
-        "value": "${{ github.repository }}",
-        "inline": true
-      },
-      {
-        "name": "Version", 
-        "value": "${{ steps.version.outputs.VERSION_NUMBER }}",
-        "inline": true
-      },
-      {
-        "name": "Package Size",
-        "value": "$fileSizeMB MB",
-        "inline": true
-      },
-      {
-        "name": "What's Changed",
-        "value": "$changelogClean",
-        "inline": false
-      }
-    ],
-    "timestamp": "$timestamp",
-    "footer": {
-      "text": "GitHub Release",
-      "icon_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-    }
-  }]
-}
-"@
-        
-        try {
-          $response = Invoke-RestMethod -Uri $env:DISCORD_WEBHOOK -Method Post -Body $jsonPayload -ContentType "application/json"
-          Write-Host "Discord notification sent successfully"
-        }
-        catch {
-          Write-Host "Failed to send Discord notification (non-critical): $($_.Exception.Message)"
-        }
+        $ErrorActionPreference = "Stop"
+
+        $webhookUrl = "${{ secrets.DISCORD_WEBHOOK }}"
+        $version = "${{ steps.version.outputs.VERSION_NUMBER }}"
+        $versionTag = "${{ steps.version.outputs.VERSION_TAG }}"
+        $repository = "https://github.com/${{ github.repository }}"
+        $zipFile = "Deimos-${versionTag}.zip"
+        $changelog = @"
+          ${{ steps.changelog.outputs.CHANGELOG }}
+        "@
+
+        # Call the PowerShell script
+        ./release_notify.ps1 `
+          -WebhookUrl $webhookUrl `
+          -Version $version `
+          -VersionTag $versionTag `
+          -Repository $repository `
+          -ZipFile $zipFile `
+          -Changelog $changelog `
+          -UserId "263123145333014530"
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-    
+
     - name: Release Summary
       shell: bash
       run: |
