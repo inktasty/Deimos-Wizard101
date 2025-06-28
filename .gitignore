@@ -7,3 +7,7 @@ testbot.txt
 *.spec
 build/
 dist/
+*.env
+.secret/*
+.secret
+.secrets

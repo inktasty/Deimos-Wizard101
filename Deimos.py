@@ -1284,21 +1284,32 @@ async def main():
 			if walker.clients and foreground_client:
 				current_zone = await foreground_client.zone_name()
 				try:
-					if parent := await foreground_client.client_object.parent():
-						if await parent.object_name() == "Player Object":
-							children = await parent.children()
-							for pet_object in children:
-								current_pos = await pet_object.location()
-								current_rotation = await pet_object.orientation()
-						else:
-							current_pos: XYZ = await foreground_client.body.position()
-							current_rotation: Orient = await foreground_client.body.orientation()
-							current_pos.x = trunc(current_pos.x, 3)
-							current_pos.y = trunc(current_pos.y, 3)
-							current_pos.z = trunc(current_pos.z, 3)
-							current_rotation.yaw = trunc(current_rotation.yaw, 3)
-							current_rotation.pitch = trunc(current_rotation.pitch, 3)
-							current_rotation.roll = trunc(current_rotation.roll, 3)
+					if await foreground_client.game_client.is_freecam():
+						camera = await foreground_client.game_client.free_camera_controller()
+						current_pos = await camera.position()
+						current_rotation: Orient = await camera.orientation()
+						current_pos.x = trunc(current_pos.x, 3)
+						current_pos.y = trunc(current_pos.y, 3)
+						current_pos.z = trunc(current_pos.z, 3)
+						current_rotation.yaw = trunc(current_rotation.yaw, 3)
+						current_rotation.pitch = trunc(current_rotation.pitch, 3)
+						current_rotation.roll = trunc(current_rotation.roll, 3)
+					else:
+						if parent := await foreground_client.client_object.parent():
+							if await parent.object_name() == "Player Object":
+								children = await parent.children()
+								for pet_object in children:
+									current_pos = await pet_object.location()
+									current_rotation = await pet_object.orientation()
+							else:
+								current_pos: XYZ = await foreground_client.body.position()
+								current_rotation: Orient = await foreground_client.body.orientation()
+								current_pos.x = trunc(current_pos.x, 3)
+								current_pos.y = trunc(current_pos.y, 3)
+								current_pos.z = trunc(current_pos.z, 3)
+								current_rotation.yaw = trunc(current_rotation.yaw, 3)
+								current_rotation.pitch = trunc(current_rotation.pitch, 3)
+								current_rotation.roll = trunc(current_rotation.roll, 3)
 						
 				except wizwalker.errors.MemoryReadError as e:
 					await handle_coord_error(e)

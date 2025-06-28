@@ -177,9 +177,6 @@ jobs:
         tag_name: ${{ steps.version.outputs.VERSION_TAG }}
         name: Deimos ${{ steps.version.outputs.VERSION_TAG }}
         body: |
-          ## What's Changed
-          ${{ steps.changelog.outputs.CHANGELOG }}
-          
           **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.changelog.outputs.LAST_TAG }}...${{ steps.version.outputs.VERSION_TAG }}
         files: |
           Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip
@@ -198,7 +195,7 @@ jobs:
       run: |
         $ErrorActionPreference = "Stop"
 
-        $scriptPath = Join-Path $PWD 'release_notify.ps1'
+        $scriptPath = '.\scripts\release_notify.ps1'
         if (-Not (Test-Path $scriptPath)) {
           throw "release_notify.ps1 not found at $scriptPath"
         }
@@ -209,25 +206,20 @@ jobs:
         $versionTag = $env:VERSION_TAG
         $repository = $env:REPOSITORY
         $zipFile = $env:ZIP_FILE
-        $changelog = $env:CHANGELOG -replace "`r`n", "`n"
-        $userId = $env:USER_ID
+        $changelogUrl = $env:CHANGELOG_URL
 
         & $scriptPath `
           -WebhookUrl $webhookUrl `
-          -Version $version `
           -VersionTag $versionTag `
           -Repository $repository `
-          -ZipFile $zipFile `
-          -Changelog $changelog `
-          -UserId $userId
+          -ChangelogUrl $changelogUrl `
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         VERSION: ${{ steps.version.outputs.VERSION_NUMBER }}
         VERSION_TAG: ${{ steps.version.outputs.VERSION_TAG }}
         REPOSITORY: https://github.com/${{ github.repository }}
         ZIP_FILE: Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip
-        CHANGELOG: ${{ steps.changelog.outputs.CHANGELOG }}
-        USER_ID: "263123145333014530"
+        CHANGELOG_URL: https://github.com/${{ github.repository }}/compare/${{ steps.changelog.outputs.LAST_TAG }}...${{ steps.version.outputs.VERSION_TAG }}
 
 
     - name: Release Summary
