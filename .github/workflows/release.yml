@@ -209,14 +209,14 @@ jobs:
         $versionTag = $env:VERSION_TAG
         $repository = $env:REPOSITORY
         $zipFile = $env:ZIP_FILE
-        $changelog = $env:CHANGELOG -replace "`r`n", "`n"
+        $changelogUrl = $env:CHANGELOG_URL
         $userId = $env:USER_ID
 
         & $scriptPath `
           -WebhookUrl $webhookUrl `
           -VersionTag $versionTag `
           -Repository $repository `
-          -Changelog $changelog `
+          -ChangelogUrl $changelogUrl `
           -UserId $userId
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
@@ -224,7 +224,7 @@ jobs:
         VERSION_TAG: ${{ steps.version.outputs.VERSION_TAG }}
         REPOSITORY: https://github.com/${{ github.repository }}
         ZIP_FILE: Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip
-        CHANGELOG: ${{ steps.changelog.outputs.CHANGELOG }}
+        CHANGELOG_URL: https://github.com/${{ github.repository }}/compare/${{ steps.changelog.outputs.LAST_TAG }}...${{ steps.version.outputs.VERSION_TAG }}
         USER_ID: "263123145333014530"
 
 
