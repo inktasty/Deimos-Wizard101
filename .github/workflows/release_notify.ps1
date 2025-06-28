@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory=$true)]
-    [string]$WebhookUrl = "https://discord.com/api/webhooks/1387644122524811264/V3qjAc0QcylIF1EpDjvhG2SW9dTYO_zofod4XnpDrxL5242fiIqmYkCvzGhM7B0_EvPo",
+    [string]$WebhookUrl = "",
     
     [Parameter(Mandatory=$true)]
     [string]$VersionTag = "3.11.0",
