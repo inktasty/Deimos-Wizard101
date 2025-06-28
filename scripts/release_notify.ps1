@@ -1,16 +1,22 @@
 param(
     [Parameter(Mandatory=$true)]
     [string]$WebhookUrl = "",
-    
+   
     [Parameter(Mandatory=$true)]
-    [string]$VersionTag = "3.11.0",
-    
+    [string]$Version = "3.11.0",        # Changed from VersionTag
+   
+    [Parameter(Mandatory=$true)]
+    [string]$VersionTag = "v3.11.0",    # Keep this too if you need both
+   
     [Parameter(Mandatory=$true)]
     [string]$Repository = "https://github.com/Deimos-Wizard101/Deimos-Wizard101",
-    
+   
+    [Parameter(Mandatory=$true)]
+    [string]$ZipFile = "Deimos-v3.11.0.zip",  # Add this parameter
+   
     [Parameter(Mandatory=$true)]
     [string]$Changelog = "Testing testing 123",
-    
+   
     [Parameter(Mandatory=$true)]
     [string]$UserId = "263123145333014530"
 )
