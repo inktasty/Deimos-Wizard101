@@ -177,9 +177,6 @@ jobs:
         tag_name: ${{ steps.version.outputs.VERSION_TAG }}
         name: Deimos ${{ steps.version.outputs.VERSION_TAG }}
         body: |
-          ## What's Changed
-          ${{ steps.changelog.outputs.CHANGELOG }}
-          
           **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.changelog.outputs.LAST_TAG }}...${{ steps.version.outputs.VERSION_TAG }}
         files: |
           Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip
@@ -210,14 +207,12 @@ jobs:
         $repository = $env:REPOSITORY
         $zipFile = $env:ZIP_FILE
         $changelogUrl = $env:CHANGELOG_URL
-        $userId = $env:USER_ID
 
         & $scriptPath `
           -WebhookUrl $webhookUrl `
           -VersionTag $versionTag `
           -Repository $repository `
           -ChangelogUrl $changelogUrl `
-          -UserId $userId
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         VERSION: ${{ steps.version.outputs.VERSION_NUMBER }}
@@ -225,7 +220,6 @@ jobs:
         REPOSITORY: https://github.com/${{ github.repository }}
         ZIP_FILE: Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip
         CHANGELOG_URL: https://github.com/${{ github.repository }}/compare/${{ steps.changelog.outputs.LAST_TAG }}...${{ steps.version.outputs.VERSION_TAG }}
-        USER_ID: "263123145333014530"
 
 
     - name: Release Summary

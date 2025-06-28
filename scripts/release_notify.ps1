@@ -9,17 +9,14 @@ param(
     [string]$Repository = "https://github.com/Deimos-Wizard101/Deimos-Wizard101",
    
     [Parameter(Mandatory=$true)]
-    [string]$ChangelogUrl = "",
-   
-    [Parameter(Mandatory=$true)]
-    [string]$UserId = "263123145333014530"
+    [string]$ChangelogUrl = ""
 )
 
 Write-Host "Sending Discord notification for release $VersionTag..."
 
 try {
     # Construct clean message with changelog link
-    $content = "<@$UserId> A new release is out: **$VersionTag**`n" +
+    $content = "@everyone A new release is out: **$VersionTag**`n" +
                "📦 Download: $Repository/releases/tag/$VersionTag`n" +
                "📋 Full Changelog: $ChangelogUrl"
     
