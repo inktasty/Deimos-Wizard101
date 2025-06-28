@@ -214,10 +214,8 @@ jobs:
 
         & $scriptPath `
           -WebhookUrl $webhookUrl `
-          -Version $version `
           -VersionTag $versionTag `
           -Repository $repository `
-          -ZipFile $zipFile `
           -Changelog $changelog `
           -UserId $userId
       env:
