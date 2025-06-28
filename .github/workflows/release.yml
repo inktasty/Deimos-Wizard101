@@ -198,7 +198,7 @@ jobs:
       run: |
         $ErrorActionPreference = "Stop"
 
-        $scriptPath = '.\release_notify.ps1'
+        $scriptPath = '.\scripts\release_notify.ps1'
         if (-Not (Test-Path $scriptPath)) {
           throw "release_notify.ps1 not found at $scriptPath"
         }
