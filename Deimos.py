@@ -54,12 +54,12 @@ gui.PySimpleGUI.SUPPRESS_RAISE_KEY_ERRORS = True
 
 cMessageBox = ctypes.windll.user32.MessageBoxW
 
-tool_version: str = '3.10.0'
+tool_version: str = '3.11.0'
 tool_name: str = 'Deimos'
 tool_author: str = 'Deimos-Wizard101'
 repo_name: str = tool_name + '-Wizard101'
-branch: str = 'master'
-repo_path_raw: str = f'https://codeberg.org/{tool_author}/{repo_name}/raw/branch/{branch}'
+branch: str = 'main'
+repo_path_raw: str = f'https://raw.githubusercontent.com/{tool_author}/{repo_name}/refs/heads/{branch}'
 
 type_format_dict = {
 "char": "<c",
@@ -104,13 +104,13 @@ def read_config(config_name : str):
 	parser.read(config_name)
 
 	# Settings
-	global auto_updating
+	# global auto_updating
 	global speed_multiplier
 	global use_potions
 	global rpc_status
 	global drop_status
 	global anti_afk_status
-	auto_updating = parser.getboolean('settings', 'auto_updating', fallback=True)
+	# auto_updating = parser.getboolean('settings', 'auto_updating', fallback=True)
 	speed_multiplier = parser.getfloat('settings', 'speed_multiplier', fallback=5.0)
 	use_potions = parser.getboolean('settings', 'use_potions', fallback=True)
 	rpc_status = parser.getboolean('settings', 'rich_presence', fallback=True)
@@ -361,13 +361,13 @@ def is_version_greater(version: str, comparison_version: str) -> bool:
 	return False
 
 
-def auto_update(latest_version: str = get_latest_version()):
-	remove_if_exists(f'{tool_name}-copy.exe')
-	remove_if_exists(f'{tool_name}Updater.exe')
-	time.sleep(0.1)
-	if auto_updating:
-		if is_version_greater(latest_version, tool_version):
-			run_updater()
+# def auto_update(latest_version: str = get_latest_version()):
+# 	remove_if_exists(f'{tool_name}-copy.exe')
+# 	remove_if_exists(f'{tool_name}Updater.exe')
+# 	time.sleep(0.1)
+# 	if auto_updating:
+# 		if is_version_greater(latest_version, tool_version):
+# 			run_updater()
 
 
 def hotkey_button(name: str, auto_size: bool = False, text_color: str = gui_text_color, button_color: str = gui_button_color):
@@ -408,11 +408,13 @@ async def xyz_sync(foreground_client : Client, background_clients : list[Client]
 			logger.debug(f'{sync_locations_key} key pressed, syncing client locations.')
 		if foreground_client:
 			xyz = await foreground_client.body.position()
+			yaw = await foreground_client.body.yaw()
 		else:
 			first_background_client = background_clients[0]
 			xyz = await first_background_client.body.position()
+			yaw = await first_background_client.body.yaw()
 
-		await asyncio.gather(*[p.teleport(xyz) for p in background_clients])
+		await asyncio.gather(*[p.teleport(xyz, yaw=yaw) for p in background_clients])
 		if turn_after:
 			await asyncio.gather(*[p.send_key(key=Keycode.A, seconds=0.1) for p in background_clients])
 			await asyncio.gather(*[p.send_key(key=Keycode.D, seconds=0.1) for p in background_clients])
@@ -1282,21 +1284,32 @@ async def main():
 			if walker.clients and foreground_client:
 				current_zone = await foreground_client.zone_name()
 				try:
-					if parent := await foreground_client.client_object.parent():
-						if await parent.object_name() == "Player Object":
-							children = await parent.children()
-							for pet_object in children:
-								current_pos = await pet_object.location()
-								current_rotation = await pet_object.orientation()
-						else:
-							current_pos: XYZ = await foreground_client.body.position()
-							current_rotation: Orient = await foreground_client.body.orientation()
-							current_pos.x = trunc(current_pos.x, 3)
-							current_pos.y = trunc(current_pos.y, 3)
-							current_pos.z = trunc(current_pos.z, 3)
-							current_rotation.yaw = trunc(current_rotation.yaw, 3)
-							current_rotation.pitch = trunc(current_rotation.pitch, 3)
-							current_rotation.roll = trunc(current_rotation.roll, 3)
+					if await foreground_client.game_client.is_freecam():
+						camera = await foreground_client.game_client.free_camera_controller()
+						current_pos = await camera.position()
+						current_rotation: Orient = await camera.orientation()
+						current_pos.x = trunc(current_pos.x, 3)
+						current_pos.y = trunc(current_pos.y, 3)
+						current_pos.z = trunc(current_pos.z, 3)
+						current_rotation.yaw = trunc(current_rotation.yaw, 3)
+						current_rotation.pitch = trunc(current_rotation.pitch, 3)
+						current_rotation.roll = trunc(current_rotation.roll, 3)
+					else:
+						if parent := await foreground_client.client_object.parent():
+							if await parent.object_name() == "Player Object":
+								children = await parent.children()
+								for pet_object in children:
+									current_pos = await pet_object.location()
+									current_rotation = await pet_object.orientation()
+							else:
+								current_pos: XYZ = await foreground_client.body.position()
+								current_rotation: Orient = await foreground_client.body.orientation()
+								current_pos.x = trunc(current_pos.x, 3)
+								current_pos.y = trunc(current_pos.y, 3)
+								current_pos.z = trunc(current_pos.z, 3)
+								current_rotation.yaw = trunc(current_rotation.yaw, 3)
+								current_rotation.pitch = trunc(current_rotation.pitch, 3)
+								current_rotation.roll = trunc(current_rotation.roll, 3)
 						
 				except wizwalker.errors.MemoryReadError as e:
 					await handle_coord_error(e)
@@ -2139,47 +2152,47 @@ def bool_to_string(input: bool):
 		return 'Disabled'
 
 
-def handle_tool_updating():
-	version = get_latest_version()
-	update_server = None
+# def handle_tool_updating():
+# 	version = get_latest_version()
+# 	update_server = None
 
-	try:
-		update_server = read_webpage(f"{repo_path_raw}/LatestVersion.txt")
-	except Exception as e:
-		print(f"Exception \"{type(e).__name__}\" occured when checking for updates: \"{e}\"")
-		return
+# 	try:
+# 		update_server = read_webpage(f"{repo_path_raw}/LatestVersion.txt")
+# 	except Exception as e:
+# 		print(f"Exception \"{type(e).__name__}\" occured when checking for updates: \"{e}\"")
+# 		return
 	
-	if update_server is None:
-		return
+# 	if update_server is None:
+# 		return
 
-	if update_server is not None and update_server[1].lower() == 'false':
-		raise KeyboardInterrupt
+# 	if update_server is not None and update_server[1].lower() == 'false':
+# 		raise KeyboardInterrupt
 
-	if update_server is not None:
-		version_specific_data = update_server[2:]
-		version_status_check = ' '.join(version_specific_data)
+# 	if update_server is not None:
+# 		version_specific_data = update_server[2:]
+# 		version_status_check = ' '.join(version_specific_data)
 
-		if tool_version in version_status_check:
-			version_status_index = index_with_str(version_specific_data, tool_version)
-			version_status = version_specific_data[version_status_index].split(' ')[1]
+# 		if tool_version in version_status_check:
+# 			version_status_index = index_with_str(version_specific_data, tool_version)
+# 			version_status = version_specific_data[version_status_index].split(' ')[1]
 
-			if version_status.lower() == 'false':
-				raise KeyboardInterrupt
+# 			if version_status.lower() == 'false':
+# 				raise KeyboardInterrupt
 
-			elif version_status.lower() == 'force':
-				auto_update()
+# 			elif version_status.lower() == 'force':
+# 				auto_update()
 
-		if version and auto_updating:
-			if is_version_greater(version, tool_version):
-				auto_update()
+# 		if version and auto_updating:
+# 			if is_version_greater(version, tool_version):
+# 				auto_update()
 
-			if not is_version_greater(tool_version, version):
-				config_update()
+# 			if not is_version_greater(tool_version, version):
+# 				config_update()
 
 
 if __name__ == "__main__":
 	# Validate configs and update the tool
-	handle_tool_updating()
+	# handle_tool_updating()
 
 	current_log = logger.add(f"logs/{tool_name} - {generate_timestamp()}.log", encoding='utf-8', enqueue=True, backtrace=True)
 	asyncio.run(main())

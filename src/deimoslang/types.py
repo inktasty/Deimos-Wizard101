@@ -24,9 +24,18 @@ class CommandKind(Enum):
     click = auto()
     tozone = auto()
     load_playstyle = auto()
-    set_yaw = auto()
+    set_yaw = auto() 
     setdeck = auto()
-    getdeck = auto()
+    getdeck = auto() 
+    select_friend = auto()
+    autopet = auto()
+    compound = auto()
+    set_goal = auto()
+    set_quest = auto()
+    set_zone = auto()
+    toggle_combat = auto()
+    restart_bot = auto()
+    cursor = auto() 
 
 class TeleportKind(Enum):
     position = auto()
@@ -38,6 +47,8 @@ class TeleportKind(Enum):
     quest = auto()
     client_num = auto()
     nav = auto()
+    plusteleport = auto()
+    minusteleport = auto()
 
 class EvalKind(Enum):
     health = auto()
@@ -54,12 +65,21 @@ class EvalKind(Enum):
     potioncount = auto()
     max_potioncount = auto()
     playercount = auto()
+    any_player_list = auto()
+    windownum = auto()
+    account_level = auto()
+    duel_round = auto()
+    reference_counter = auto()
 
 class WaitforKind(Enum):
     dialog = auto()
     battle = auto()
     zonechange = auto()
     free = auto()
+    window = auto()
+
+class CursorKind(Enum):
+    position = auto()
     window = auto()
 
 class ClickKind(Enum):
@@ -101,7 +121,20 @@ class ExprKind(Enum):
     same_place = auto()
     in_range = auto()
     has_yaw = auto()
+    same_quest = auto()
+    same_xyz = auto()
+    same_yaw = auto()
+    items_dropped = auto()
+    duel_round = auto()
+    goal_changed = auto()
+    quest_changed = auto()
+    zone_changed = auto()
+    constant_check = auto()
+    constant_reference = auto()
 
+class TimerAction(Enum):
+    start = auto()
+    end = auto()
 
 # TODO: Replace asserts
 
@@ -111,12 +144,16 @@ class PlayerSelector:
         self.mass = False
         self.inverted = False
         self.wildcard = False
+        self.any_player = False
+        self.same_any = False
 
     def validate(self):
         assert not (self.mass and self.inverted), "Invalid player selector: mass + except"
         assert not (self.mass and len(self.player_nums) > 0), "Invalid player selector: mass + specified players"
         assert not (self.inverted and len(self.player_nums) == 0), "Invalid player selector: inverted + 0 players"
         assert (not self.wildcard) or (self.wildcard and not (self.mass) and len(self.player_nums) == 0), "Invalid player selector: wildcard + mass or player_nums"
+        assert (not self.any_player) or (self.any_player and not (self.mass) and len(self.player_nums) == 0), "Invalid player selector: any_player + mass or player_nums"
+        assert (not self.same_any) or (self.same_any and not (self.mass) and len(self.player_nums) == 0), "Invalid player selector: same_any + mass or player_nums"
         self.player_nums.sort()
 
     def __hash__(self) -> int:
@@ -142,6 +179,14 @@ class Command:
 class Expression:
     def __init__(self):
         pass
+
+class ConstantExpression(Expression):
+    def __init__(self, name: str, value: Expression):
+        self.name = name
+        self.value = value
+
+    def __repr__(self) -> str:
+        return f"ConstE({self.name}, {self.value})"
 
 class ListExpression(Expression):
     def __init__(self, items: list[Expression]):
@@ -228,6 +273,57 @@ class GreaterExpression(BinaryExpression):
     def __repr__(self) -> str:
         return f"GreaterE({self.lhs}, {self.rhs})"
 
+class AndExpression(Expression):
+    def __init__(self, expressions: list[Expression]):
+        self.expressions = expressions
+
+    def __repr__(self) -> str:
+        return f"AndE({', '.join(str(expr) for expr in self.expressions)})"
+
+class OrExpression(Expression):
+    def __init__(self, expressions: list[Expression]):
+        self.expressions = expressions
+
+    def __repr__(self) -> str:
+        return f"OrE({', '.join(str(expr) for expr in self.expressions)})"
+
+class ConstantReferenceExpression(Expression):
+    def __init__(self, name: str):
+        self.name = name
+        
+    def __repr__(self) -> str:
+        return f"ConstRef(${self.name})"
+
+class ConstantCheckExpression(Expression):
+    def __init__(self, name: str, value: Expression):
+        self.name = name
+        self.value = value
+
+    def __repr__(self) -> str:
+        return f"ConstCheck({self.name}, {self.value})"
+    
+class RangeMinExpression(Expression):
+    def __init__(self, range_expr: Expression):
+        self.range_expr = range_expr
+
+    def __repr__(self) -> str:
+        return f"RangeMin({self.range_expr})"
+
+class RangeMaxExpression(Expression):
+    def __init__(self, range_expr: Expression):
+        self.range_expr = range_expr
+
+    def __repr__(self) -> str:
+        return f"RangeMax({self.range_expr})"
+    
+class IndexAccessExpression(Expression):
+    def __init__(self, expr: Expression, index: Expression):
+        self.expr = expr
+        self.index = index
+
+    def __repr__(self) -> str:
+        return f"IndexAccess({self.expr}[{self.index}])"
+
 class SelectorGroup(Expression):
     def __init__(self, players: PlayerSelector, expr: Expression):
         self.players = players
@@ -264,7 +360,6 @@ class ReadVarExpr(Expression):
     def __repr__(self) -> str:
         return f"ReadVarE {self.loc}"
 
-
 class Eval(Expression):
     def __init__(self, eval_kind: EvalKind, args=[]):
         self.kind = eval_kind
@@ -277,12 +372,36 @@ class Stmt:
     def __init__(self) -> None:
         pass
 
+class ConstantDeclStmt(Stmt):
+    def __init__(self, name: str, value: Expression):
+        self.name = name
+        self.value = value
+
+    def __repr__(self) -> str:
+        return f"ConstDeclS({self.name}, {self.value})"
+
+class ParallelCommandStmt(Stmt):
+    def __init__(self, commands: list[Command]) -> None:
+        self.commands = commands
+    
+    def __repr__(self) -> str:
+        return f"ParallelCommandStmt({self.commands})"
+
 class StmtList(Stmt):
     def __init__(self, stmts: list[Stmt]):
         self.stmts = stmts
 
     def __repr__(self) -> str:
         return "StmtList{" + "; ".join([str(x) for x in self.stmts]) + "}"
+
+class TimerStmt(Stmt):
+    def __init__(self, action: TimerAction, timer_name: str):
+        self.action = action
+        self.timer_name = timer_name
+        
+    def __str__(self):
+        action_str = "settimer" if self.action == TimerAction.start else "endtimer"
+        return f"{action_str} {self.timer_name};"
 
 class CommandStmt(Stmt):
     def __init__(self, command: Command):
