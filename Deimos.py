@@ -647,7 +647,7 @@ async def main():
     global original_client_locations
     global listener
     logger.info(
-        f"Deimos v{tool_version}"
+        f"Deimos v{tool_version}"`
     )
     listener = HotkeyListener()
     foreground_client: Client = None
@@ -1804,6 +1804,7 @@ async def main():
             await _init_client_attrs(nc)
             nick = launched_account_map.get(handle)
             logger.info(f"Auto-hooked vault-launched client '{nc.title}' ({nick}).")
+            _send_hooked_clients_update()
             _restart_always_on_tasks()
             _restart_active_toggle_tasks()
         except asyncio.CancelledError:
@@ -1826,7 +1827,6 @@ async def main():
         finally:
             _hooking_in_progress.discard(handle)
             _hooking_tasks.pop(handle, None)
-            _send_hooked_clients_update()
 
     async def handle_gui():
 
