@@ -142,41 +142,40 @@ jobs:
         "$hash  Deimos.exe" | Out-File -FilePath "dist/Deimos.exe.sha256" -Encoding ascii -NoNewline
         Write-Host "SHA256: $hash"
 
-    - name: Create build package
+    # Stage the exact payload into one flat folder. It is NOT zipped here: GitHub
+    # already serves an artifact as a zip, so building our own inside it made you
+    # unpack twice. Uploading the files from their build locations instead would keep
+    # the "dist/" prefix, because artifact paths are relative to the common ancestor
+    # of everything listed -- mixing dist/Deimos.exe with a root-level LICENSE makes
+    # that ancestor the repo root. Staging first makes the folder the ancestor, so the
+    # three files land at the root of the downloaded zip.
+    - name: Stage build package
       shell: powershell
       run: |
-        Write-Host "Creating build package..."
-        New-Item -ItemType Directory -Path "release" -Force
+        Write-Host "Staging build package..."
+        New-Item -ItemType Directory -Path "release" -Force | Out-Null
 
-        # Copy files to release directory
         Copy-Item "dist/Deimos.exe" -Destination "release/"
+        Copy-Item "dist/Deimos.exe.sha256" -Destination "release/"
         Copy-Item "LICENSE" -Destination "release/"
 
-        # Create zip file with version in name using PowerShell
-        $zipName = "Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip"
-        Compress-Archive -Path "release/*" -DestinationPath $zipName -Force
-
-        Write-Host "Build package created: $zipName"
         Write-Host "Package contents:"
         Get-ChildItem "release" | Format-Table Name, Length
 
-    # Mirrors the release asset set (zip + bare exe + checksum) so a dev build
-    # can be dropped in place of a release to rehearse the self-update path
+    # Same payload a release ships (Deimos.exe + its checksum + LICENSE), so a dev
+    # build can be dropped in place of a release to rehearse the self-update path
     # before tagging.
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: Deimos-${{ steps.version.outputs.VERSION_TAG }}
-        path: |
-          Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip
-          dist/Deimos.exe
-          dist/Deimos.exe.sha256
+        path: release/
         retention-days: 90
 
     - name: Build Summary
       shell: bash
       run: |
         echo "✅ Build ${{ steps.version.outputs.VERSION_TAG }} completed successfully!"
-        echo "📦 Package: Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip"
-        echo "📁 Package size: $(stat -c%s "Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip") bytes"
+        echo "📦 Artifact: Deimos-${{ steps.version.outputs.VERSION_TAG }} (Deimos.exe, Deimos.exe.sha256, LICENSE)"
+        echo "📁 Deimos.exe size: $(stat -c%s release/Deimos.exe) bytes"
         echo "⬇️ Download from Actions artifacts tab"

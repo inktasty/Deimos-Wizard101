@@ -193,8 +193,10 @@ jobs:
         Write-Host "Creating release package..."
         New-Item -ItemType Directory -Path "release" -Force
 
-        # Copy files to release directory
+        # Copy files to release directory. The checksum goes in the zip too, so the
+        # packaged download matches the loose assets and can be verified offline.
         Copy-Item "dist/Deimos.exe" -Destination "release/"
+        Copy-Item "dist/Deimos.exe.sha256" -Destination "release/"
         Copy-Item "LICENSE" -Destination "release/"
 
         # Create zip file with version in name using PowerShell
