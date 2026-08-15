@@ -70,12 +70,30 @@ jobs:
     - name: Install dependencies
       run: uv sync --group dev
 
+    # The Rust helpers are built explicitly, mirroring release.yml. Deimos.spec
+    # also invokes cargo, but tolerates a failure so local builds still work --
+    # so without these steps a broken crate only shows up as a silently
+    # incomplete exe (no self-updater, no game-file patching) rather than a
+    # failed job. That is precisely how a moved manifest path went unnoticed
+    # here while every release build was failing.
+    - name: Build update helper (Rust)
+      shell: bash
+      run: |
+        cargo build --release --manifest-path libs/updater/Cargo.toml
+        ls -la libs/updater/target/release/deimos-updater.exe
+
+    - name: Build wizpatch patcher (Rust)
+      shell: bash
+      run: |
+        cargo build --release --manifest-path libs/wizpatch/Cargo.toml
+        ls -la libs/wizpatch/target/release/wizpatch.exe
+
     - name: Build with PyInstaller
       run: |
         uv run --group dev pyinstaller --noconfirm --clean Deimos.spec
         echo "Build completed successfully"
         dir dist
-    
+
     - name: Verify required files exist
       shell: bash
       run: |
@@ -90,7 +108,35 @@ jobs:
         fi
         echo "All required files found ✓"
         echo "Deimos.exe size: $(stat -c%s dist/Deimos.exe) bytes"
-    
+
+    # Fail loudly if the helpers did not make it into the bundle. Deimos.spec
+    # omits a missing helper with only a warning, which is invisible in CI logs.
+    - name: Verify bundled helpers
+      shell: bash
+      run: |
+        uv run --group dev python - <<'PY'
+        import sys
+        from PyInstaller.archive.readers import CArchiveReader
+
+        required = {"deimos-updater.exe", "wizpatch.exe"}
+        bundled = set(CArchiveReader("dist/Deimos.exe").toc)
+        missing = sorted(required - bundled)
+        if missing:
+            print(f"ERROR: helper(s) missing from bundle: {', '.join(missing)}")
+            sys.exit(1)
+        print(f"All helpers embedded in Deimos.exe: {', '.join(sorted(required))}")
+        PY
+
+    # Same checksum the release publishes. The self-updater fetches
+    # Deimos.exe.sha256 and refuses a download whose hash does not match, so the
+    # format here has to stay in step with src/updater.py.
+    - name: Generate checksum
+      shell: powershell
+      run: |
+        $hash = (Get-FileHash "dist/Deimos.exe" -Algorithm SHA256).Hash.ToLower()
+        "$hash  Deimos.exe" | Out-File -FilePath "dist/Deimos.exe.sha256" -Encoding ascii -NoNewline
+        Write-Host "SHA256: $hash"
+
     - name: Create build package
       shell: powershell
       run: |
@@ -109,11 +155,17 @@ jobs:
         Write-Host "Package contents:"
         Get-ChildItem "release" | Format-Table Name, Length
     
+    # Mirrors the release asset set (zip + bare exe + checksum) so a dev build
+    # can be dropped in place of a release to rehearse the self-update path
+    # before tagging.
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: Deimos-${{ steps.version.outputs.VERSION_TAG }}
-        path: Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip
+        path: |
+          Deimos-${{ steps.version.outputs.VERSION_TAG }}.zip
+          dist/Deimos.exe
+          dist/Deimos.exe.sha256
         retention-days: 90
 
     - name: Build Summary
