@@ -647,7 +647,7 @@ async def main():
     global original_client_locations
     global listener
     logger.info(
-        f"Deimos v{tool_version}"`
+        f"Deimos v{tool_version}"
     )
     listener = HotkeyListener()
     foreground_client: Client = None

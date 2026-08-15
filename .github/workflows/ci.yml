@@ -30,6 +30,10 @@ jobs:
     - name: Install dependencies
       run: uv sync --group dev
 
+    - name: Compile check
+      shell: bash
+      run: uv run --group dev python -m compileall -q Deimos.py src
+
     - name: Record Rust version
       id: rust
       shell: bash
