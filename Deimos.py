@@ -1725,6 +1725,20 @@ async def main():
             )
         )
 
+    def _derive_leader_pids():
+        # Re-derive questing/sigil leader pids from the current client set and
+        # the client_to_boost / client_to_follow settings. Called on hook, on
+        # settings change, and on client removal so a boost/follow choice made
+        # mid-session (or a relaunch that changes process ids) takes effect.
+        global questing_leader_pid, sigil_leader_pid
+        questing_leader_pid = None
+        sigil_leader_pid = None
+        for c in walker.clients:
+            if client_to_boost and client_to_boost in c.title:
+                questing_leader_pid = c.process_id
+            if client_to_follow and client_to_follow in c.title:
+                sigil_leader_pid = c.process_id
+
     async def _init_client_attrs(client):
         """Initialize all per-client attributes. Called once per client after hooking."""
         client_speeds[client.process_id] = await client.client_object.speed_multiplier()
@@ -1782,12 +1796,7 @@ async def main():
             logger.debug(f"[GID] _init_client_attrs '{client.title}': exception {e}")
 
         # Set follower/leader statuses for auto questing/sigil
-        if client_to_follow and client_to_follow in client.title:
-            global sigil_leader_pid
-            sigil_leader_pid = client.process_id
-        if client_to_boost and client_to_boost in client.title:
-            global questing_leader_pid
-            questing_leader_pid = client.process_id
+        _derive_leader_pids()
 
     async def _auto_hook_client(nc, handle):
         """Wait for a vault-launched client's hooks to come ready, then finish
@@ -3647,6 +3656,7 @@ async def main():
                                     if c.window_handle in walker._managed_handles:
                                         walker._managed_handles.remove(c.window_handle)
                                     walker.clients.remove(c)
+                                    _derive_leader_pids()
                                     # Restore the in-process resolution/resize asm
                                     # hooks while the client is still alive — close()
                                     # rewrites the hook codecave, so leaving these
@@ -3733,6 +3743,7 @@ async def main():
                                     if c.window_handle in walker._managed_handles:
                                         walker._managed_handles.remove(c.window_handle)
                                     walker.clients.remove(c)
+                                    _derive_leader_pids()
                                     # Restore resolution/resize asm hooks before
                                     # close() clears the codecave (dangling jump =
                                     # crash, even briefly before the process dies).
@@ -3766,6 +3777,7 @@ async def main():
                                     if c.window_handle in walker._managed_handles:
                                         walker._managed_handles.remove(c.window_handle)
                                     walker.clients.remove(c)
+                                    _derive_leader_pids()
                                     # Restore resolution/resize asm hooks before
                                     # close() clears the codecave (dangling jump =
                                     # crash, even briefly before the process dies).
@@ -3846,8 +3858,10 @@ async def main():
                                         use_team_up = value
                                     case "client_to_follow":
                                         client_to_follow = value
+                                        _derive_leader_pids()
                                     case "client_to_boost":
                                         client_to_boost = value
+                                        _derive_leader_pids()
                                     case "friend_teleport":
                                         questing_friend_tp = value
                                     case "gear_switching_in_solo_zones":
