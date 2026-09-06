@@ -47,6 +47,13 @@ def delegate_combat_configs(input_data: str, fallback_clients: int = 1, line_sep
     - line_seperator (str): Symbol or string that seperates lines of the file, newline by default
     '''
 
+    # An empty (or whitespace-only) editor means "restore defaults": fall back
+    # to the built-in default_config for every client instead of leaving each
+    # with an empty string (which disables auto combat by raising
+    # 'Full config fail' every round).
+    if not str(input_data).strip():
+        return {i: default_config for i in range(fallback_clients)}
+
     config_lines = input_data.split(line_seperator)
     client_configs: Dict[int, str] = {}
 
