@@ -450,9 +450,11 @@ async def buy_potions(client: Client, recall: bool = True, original_zone=None):
         await asyncio.sleep(1.0)
         max_potions = await client.stats.potion_max()
         # buy potions and close the potions menu, and recall if needed
+        blocked = False
         for i in range(2):
             original_potion_count = await client.stats.potion_charge()
             current_potion_count = original_potion_count
+            failed_buy_cycles = 0
 
             # buy potions until our potion count has either increased (we may not have enough gold for all potions) or we are at max potions
             while current_potion_count == original_potion_count and current_potion_count < max_potions:
@@ -472,6 +474,25 @@ async def buy_potions(client: Client, recall: bool = True, original_zone=None):
 
                 current_potion_count = await client.stats.potion_charge()
                 await asyncio.sleep(.5)
+
+                # A full buy cycle that added no potions means we cannot afford one (not enough gold).
+                # Stop retrying instead of looping forever, and set a cooldown so questing does not
+                # keep dragging the client back to the potion shop every loop.
+                if current_potion_count == original_potion_count:
+                    failed_buy_cycles += 1
+                    if failed_buy_cycles >= 2:
+                        client.potion_buy_blocked_until = time.time() + 300
+                        logger.debug(
+                            f"Client {client.title} - Not enough gold to buy potions; skipping potion buys for 5 minutes."
+                        )
+                        blocked = True
+                        break
+                else:
+                    # bought at least one potion, clear any earlier affordability block
+                    client.potion_buy_blocked_until = 0
+
+            if blocked:
+                break
 
             if i == 0:
                 if await client.stats.potion_charge() >= 1.0:
@@ -656,6 +677,11 @@ async def click_window_until_closed(client: Client, path):
 
 
 async def refill_potions(client: Client, mark: bool = False, recall: bool = True, original_zone=None):
+    # Skip the whole trip if a recent buy attempt failed (typically not enough gold), so questing
+    # does not keep walking the client to the potion shop on every loop while broke.
+    if getattr(client, 'potion_buy_blocked_until', 0) > time.time():
+        logger.debug(f'Client {client.title} - Skipping potion refill (recent buy attempt failed, not enough gold?).')
+        return
     if await client.stats.reference_level() >= 6:
         if mark:
             if await client.zone_name() != 'WizardCity/WC_Hub':
