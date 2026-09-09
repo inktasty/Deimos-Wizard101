@@ -6,6 +6,11 @@ on:
     branches:
       - main
       - dev-main
+    # Also run on any branch with changes in progress so pushes during
+    # bug-fixing get a build check without needing a PR. Tags are excluded
+    # (release.yml owns them).
+    tags-ignore:
+      - '*'
 
 # A PR that gets pushed to repeatedly does not need every intermediate commit
 # built; keep only the newest run per ref.
