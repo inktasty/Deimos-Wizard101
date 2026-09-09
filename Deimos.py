@@ -993,12 +993,24 @@ async def main():
 
     async def toggle_auto_potion_hotkey():
         global auto_potion_status
+        global gui_send_queue
 
         if not freecam_status:
             auto_potion_status ^= True
 
+            # The sigil and questing code paths read client.buy_potions /
+            # client.use_potions directly (not auto_potion_status), so the hotkey
+            # must keep those in sync too. Otherwise toggling off only stops the
+            # background potion_usage_loop and the bot keeps buying during farming.
+            buy_default = settings.get_setting("buy_potions")
+            use_default = settings.get_setting("use_potions")
+
+            for client in walker.clients:
+                client.buy_potions = buy_default if auto_potion_status else False
+                client.use_potions = use_default if auto_potion_status else False
+
             if auto_potion_status:
-                logger.debug(f"Enabling auto potion.")
+                logger.debug("Enabling auto potion.")
                 gui_send_queue.put(
                     deimosgui.GUICommand(
                         deimosgui.GUICommandType.UpdateWindow,
@@ -1006,7 +1018,7 @@ async def main():
                     )
                 )
             else:
-                logger.debug(f"Disabling auto potion.")
+                logger.debug("Disabling auto potion.")
                 gui_send_queue.put(
                     deimosgui.GUICommand(
                         deimosgui.GUICommandType.UpdateWindow,
