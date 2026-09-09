@@ -85,14 +85,39 @@ class Sigil():
 		# the journal quest (which may be empty or point at a different sigil).
 		if not client:
 			client = self.client
-		await self.movement_checked_teleport(self.sigil_xyz)
-		while not await client.is_loading():
+
+		# The post-boss chest roll window is not covered by is_free(), so it can
+		# still be up when we start the exit walk. Cancel it now; otherwise the
+		# ESC that logout_and_in sends below can be swallowed by the roll prompt
+		# and stall wait_for_window_by_path forever. (The free-loop path cancels
+		# this on its own iterations, but the rereenter break skips that code.)
+		if await is_visible_by_path(client, cancel_chest_roll_path):
+			await click_window_by_path(client, cancel_chest_roll_path)
+
+		# Walk back out to the sigil zone. Bounded (like the short-dungeon exit:
+		# counter < 35) so a wrong facing / bad geometry never hangs the farm
+		# pressing W forever. If it doesn't trigger a loading screen, teleport
+		# back to the recorded sigil xyz and return so the caller's logout_and_in
+		# tail resets us instead of looping unboundedly.
+		await self.movement_checked_teleport(self.sigil_xyz, client=client)
+		counter = 0
+		while not await client.is_loading() and counter < 35:
 			await client.send_key(Keycode.W, seconds=0.1)
+			counter += 1
+		if counter >= 35:
+			await client.teleport(self.sigil_xyz)
+			return
+
 		await wait_for_zone_change(client, to_zone=self.sigil_zone)
 		while await client.is_loading():
 			await asyncio.sleep(0.1)
-		await client.teleport(self.sigil_xyz)
-		await client.send_key(Keycode.A, 0.1)
+		# NOTE: deliberately no teleport + press A here. The caller's shared tail
+		# (wait_free -> logout_and_in -> teleport to sigil_xyz + press A at the
+		# end of solo/leader farming logic) already does the final teleport and
+		# A press. Doing it here too would press A into the sigil/team-up prompt
+		# *before* logout_and_in sends its single ESC, and the prompt can swallow
+		# that ESC, stalling wait_for_window_by_path forever, or the A press is
+		# just dead interaction. Let the tail own the entry.
 
 
 	async def go_through_zone_changes(self):
@@ -118,12 +143,18 @@ class Sigil():
 			await collect_wisps(self.client)
 
 
-	async def movement_checked_teleport(self, xyz: XYZ):
-		current_xyz = await self.client.body.position()
-		frontal_xyz = await calc_FrontalVector(client=self.client, speed_constant=200, speed_adjusted=False)
-		await self.client.goto(frontal_xyz)
-		if not await are_xyzs_within_threshold(current_xyz, await self.client.body.position(), threshold=20):
-			await self.client.teleport(xyz)
+	async def movement_checked_teleport(self, xyz: XYZ, client: Client = None):
+		# Honour an explicit client so leader mode can teleport each follower
+		# independently. Without this, every follower's rereenter_sigil call
+		# re-fires the goto/teleport on self.client (the leader) while the
+		# followers only get the unbounded W-walk.
+		if not client:
+			client = self.client
+		current_xyz = await client.body.position()
+		frontal_xyz = await calc_FrontalVector(client=client, speed_constant=200, speed_adjusted=False)
+		await client.goto(frontal_xyz)
+		if not await are_xyzs_within_threshold(current_xyz, await client.body.position(), threshold=20):
+			await client.teleport(xyz)
 
 
 	async def wait_for_sigil(self):
