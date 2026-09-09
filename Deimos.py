@@ -3885,6 +3885,14 @@ async def main():
                             logger.debug(
                                 f"Settings updated: {list(settings_dict.keys())}"
                             )
+                            # Keep the per-client attrs (which sigil.py and questing.py
+                            # read directly) in sync with the module-level globals when the
+                            # user toggles via the GUI checkbox mid-session. Without this,
+                            # the checkbox would update the globals but sigil/questing would
+                            # keep reading the stale per-client values until rehook.
+                            for client in walker.clients:
+                                client.use_potions = use_potions
+                                client.buy_potions = buy_potions
 
             except queue.Empty:
                 pass
