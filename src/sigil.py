@@ -82,6 +82,20 @@ class Sigil():
 				await client.send_key(Keycode.ENTER, 0.1)
 			await wait_for_zone_change(client, current_zone=current_zone)
 
+	async def _dismiss_chest_roll(self, client: Client):
+		# Bounded cancel of the post-boss chest roll window. The roll renders
+		# late and lingers across many free-loop ticks, so a single visibility
+		# check is racy. is_free() ignores the roll window: if we hand control
+		# back to the caller's logout_and_in tail with the roll still up, its
+		# single ESC can be swallowed by the roll prompt and stall
+		# wait_for_window_by_path(quit) forever. Poll briefly; if it never
+		# shows, we're done.
+		for _ in range(50):  # ~5s cap
+			if not await is_visible_by_path(client, cancel_chest_roll_path):
+				return
+			await click_window_by_path(client, cancel_chest_roll_path)
+			await asyncio.sleep(0.1)
+
 	@logger.catch()
 	async def rereenter_sigil(self, client: Client = None):
 		# After the final boss of a no-quest sigil farm, walk back out to the
@@ -95,8 +109,10 @@ class Sigil():
 		# ESC that logout_and_in sends below can be swallowed by the roll prompt
 		# and stall wait_for_window_by_path forever. (The free-loop path cancels
 		# this on its own iterations, but the rereenter break skips that code.)
-		if await is_visible_by_path(client, cancel_chest_roll_path):
-			await click_window_by_path(client, cancel_chest_roll_path)
+		# The roll renders late and lingers, so we re-check immediately before
+		# every return/fall-through below as well, so logout_and_in's single ESC
+		# is never swallowed mid-exit.
+		await self._dismiss_chest_roll(client)
 
 		# Walk back out to the sigil zone. Bounded (like the short-dungeon exit:
 		# counter < 35) so a wrong facing / bad geometry never hangs the farm
@@ -110,6 +126,7 @@ class Sigil():
 			counter += 1
 		if counter >= 35:
 			await client.teleport(self.sigil_xyz)
+			await self._dismiss_chest_roll(client)  # re-check before logout tail
 			return
 
 		# Bound the wait for the exit loading to settle back into the recorded
@@ -125,7 +142,12 @@ class Sigil():
 			# Never reached the sigil zone; return so the caller's logout_and_in
 			# tail resets us (it waits for is_free first, so a still-loading
 			# client is handled there rather than hung here).
+			await self._dismiss_chest_roll(client)  # re-check before logout tail
 			return
+		# Re-check the roll right before the successful exit: a roll that popped
+		# up during the walk must be dismissed so logout_and_in's single ESC
+		# isn't swallowed by the roll prompt.
+		await self._dismiss_chest_roll(client)
 		# NOTE: deliberately no teleport + press A here. The caller's shared tail
 		# (wait_free -> logout_and_in -> teleport to sigil_xyz + press A at the
 		# end of solo/leader farming logic) already does the final teleport and
