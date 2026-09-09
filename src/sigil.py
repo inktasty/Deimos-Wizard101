@@ -1,5 +1,5 @@
 import asyncio
-from wizwalker import Keycode, Client, XYZ
+from wizwalker import Keycode, Client, XYZ, MemoryReadError
 from loguru import logger
 from src.teleport_math import navmap_tp, collision_tp, calc_FrontalVector, are_xyzs_within_threshold
 from src.utils import is_visible_by_path, click_window_by_path, wait_for_zone_change, auto_potions, logout_and_in, is_free, get_quest_name, collect_wisps
@@ -24,6 +24,24 @@ class Sigil():
 
 	async def record_quest(self):
 		self.original_quest = await get_quest_name(self.client)
+
+	async def quest_in_progress(self, client: Client = None) -> bool:
+		# True only when a tracked quest is actively advancing (not turned in
+		# and not absent). Distinguishes a real questline dungeon from a
+		# no-quest / post-final-boss sigil farm so the farm re-enters the same
+		# sigil instead of chase-teleporting to whatever the journal shows.
+		if not client:
+			client = self.client
+		try:
+			qid = await client.quest_id()
+			if qid == 0:
+				return False
+			quests = await (await client.quest_manager()).quest_data()
+			if qid not in quests:
+				return False
+			return not await quests[qid].ready_to_turn_in()
+		except (ValueError, MemoryReadError):
+			return False
 
 	@logger.catch()
 	async def team_up(self, client: Client = None):
@@ -59,6 +77,22 @@ class Sigil():
 			if await is_visible_by_path(client, dungeon_warning_path):
 				await client.send_key(Keycode.ENTER, 0.1)
 			await wait_for_zone_change(client, current_zone=current_zone)
+
+	@logger.catch()
+	async def rereenter_sigil(self, client: Client = None):
+		# After the final boss of a no-quest sigil farm, walk back out to the
+		# recorded sigil zone and re-enter the same sigil instead of chasing
+		# the journal quest (which may be empty or point at a different sigil).
+		if not client:
+			client = self.client
+		await self.movement_checked_teleport(self.sigil_xyz)
+		while not await client.is_loading():
+			await client.send_key(Keycode.W, seconds=0.1)
+		await wait_for_zone_change(client, to_zone=self.sigil_zone)
+		while await client.is_loading():
+			await asyncio.sleep(0.1)
+		await client.teleport(self.sigil_xyz)
+		await client.send_key(Keycode.A, 0.1)
 
 
 	async def go_through_zone_changes(self):
@@ -158,10 +192,18 @@ class Sigil():
 					if await is_free(self.client):
 						quest_xyz = await self.client.quest_position.position()
 						if await get_quest_name(self.client) != self.original_quest:
-							try:
-								await collision_tp(self.client, quest_xyz)
-							except ValueError:
-								pass
+							# Only chase the journal quest when a tracked quest is actively
+							# advancing. After a no-quest farm's final boss (or with no quest
+							# at all), re-enter the same sigil instead of teleporting to
+							# whatever the journal now shows.
+							if await self.quest_in_progress(self.client):
+								try:
+									await collision_tp(self.client, quest_xyz)
+								except ValueError:
+									pass
+							else:
+								await self.rereenter_sigil(self.client)
+								break
 
 						await asyncio.sleep(0.25)
 
@@ -217,7 +259,7 @@ class Sigil():
 				second_xyz = await calc_FrontalVector(self.client, speed_constant=200, speed_adjusted=False)
 				await asyncio.gather(*[SprintyClient(p).tp_to_closest_mob() for p in self.clients])
 				
-
+	
 				await self.wait_for_combat_finish()
 
 				await asyncio.sleep(0.1)
@@ -259,11 +301,19 @@ class Sigil():
 					if await is_free(self.client):
 						quest_xyz = await self.client.quest_position.position()
 						if await get_quest_name(self.client) != self.original_quest:
-							try:
-								# await navmap_tp(self.client, quest_xyz, auto_quest_leader=True)
-								await asyncio.gather(*[collision_tp(p, quest_xyz, leader_client=self.client) for p in self.clients])
-							except ValueError:
-								pass
+							# Only chase the journal quest when a tracked quest is actively
+							# advancing. After a no-quest farm's final boss (or with no quest
+							# at all), re-enter the same sigil instead of teleporting to
+							# whatever the journal now shows.
+							if await self.quest_in_progress(self.client):
+								try:
+									# await navmap_tp(self.client, quest_xyz, auto_quest_leader=True)
+									await asyncio.gather(*[collision_tp(p, quest_xyz, leader_client=self.client) for p in self.clients])
+								except ValueError:
+									pass
+							else:
+								await asyncio.gather(*[self.rereenter_sigil(p) for p in self.clients])
+								break
 
 						await asyncio.sleep(0.25)
 
