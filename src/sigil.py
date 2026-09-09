@@ -38,6 +38,10 @@ class Sigil():
 				return False
 			quests = await (await client.quest_manager()).quest_data()
 			if qid not in quests:
+				# Tracked quest id transiently missing from quest_data() (e.g.
+				# mid-transition): treat as not in progress. Deliberately
+				# conservative - safer to re-enter the farm sigil than to chase
+				# a quest marker that may have just moved on.
 				return False
 			return not await quests[qid].ready_to_turn_in()
 		except (ValueError, MemoryReadError):
@@ -108,9 +112,20 @@ class Sigil():
 			await client.teleport(self.sigil_xyz)
 			return
 
-		await wait_for_zone_change(client, to_zone=self.sigil_zone)
-		while await client.is_loading():
+		# Bound the wait for the exit loading to settle back into the recorded
+		# sigil zone. wait_for_zone_change(to_zone=...) spins forever if the
+		# exit drops the wizard somewhere the recorded zone name never matches
+		# (or the zone is briefly unreadable), so cap it like the W-walk above
+		# and fall back to the caller's logout_and_in reset instead of hanging.
+		zone_wait_counter = 0
+		while (await client.zone_name() != self.sigil_zone or await client.is_loading()) and zone_wait_counter < 300:
 			await asyncio.sleep(0.1)
+			zone_wait_counter += 1
+		if zone_wait_counter >= 300:
+			# Never reached the sigil zone; return so the caller's logout_and_in
+			# tail resets us (it waits for is_free first, so a still-loading
+			# client is handled there rather than hung here).
+			return
 		# NOTE: deliberately no teleport + press A here. The caller's shared tail
 		# (wait_free -> logout_and_in -> teleport to sigil_xyz + press A at the
 		# end of solo/leader farming logic) already does the final teleport and
@@ -289,8 +304,7 @@ class Sigil():
 				start_xyz = await self.client.body.position() 
 				second_xyz = await calc_FrontalVector(self.client, speed_constant=200, speed_adjusted=False)
 				await asyncio.gather(*[SprintyClient(p).tp_to_closest_mob() for p in self.clients])
-				
-	
+
 				await self.wait_for_combat_finish()
 
 				await asyncio.sleep(0.1)
